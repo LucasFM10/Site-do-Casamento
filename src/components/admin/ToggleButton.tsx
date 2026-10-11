@@ -26,7 +26,7 @@ export default function ToggleButton({ id, initialStatus }: ToggleButtonProps) {
       if (!result.success) {
         // Reverte se falhar
         setIsSeen(isSeen);
-        alert("Erro ao atualizar status. Verifique se a coluna 'vista' existe no seu banco de dados Supabase.");
+        alert("Erro ao atualizar status.");
       }
     } catch (error) {
       setIsSeen(isSeen);

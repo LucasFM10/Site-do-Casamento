@@ -1,0 +1,10 @@
+services:
+  pocketbase:
+    ports:
+      - "127.0.0.1:${POCKETBASE_PORT:-8090}:8090"
+
+  web:
+    environment:
+      AUTH_COOKIE_SECURE: "false"
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"

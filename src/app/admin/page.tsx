@@ -1,7 +1,5 @@
-import { getAllOfferings, signOut, toggleSeenStatus } from "../actions";
+import { getAllOfferings, signOut } from "../actions";
 import ToggleButton from "@/components/admin/ToggleButton";
-import { createClient } from "@/utils/supabase/server";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 /**
@@ -10,16 +8,13 @@ import { redirect } from "next/navigation";
  */
 
 export default async function AdminPage() {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
+  let offerings;
 
-  // Verificação de segurança no servidor
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
+  try {
+    offerings = await getAllOfferings();
+  } catch {
     redirect("/login");
   }
-
-  const offerings = await getAllOfferings();
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
