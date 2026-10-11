@@ -4,7 +4,6 @@ services:
       context: .
       target: development
     environment:
-      AUTH_COOKIE_SECURE: "false"
       WATCHPACK_POLLING: "true"
     volumes:
       - ./:/app

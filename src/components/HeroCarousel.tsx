@@ -22,7 +22,7 @@ const HeroCarousel = () => {
   }, []);
 
   return (
-    <section className="relative w-full h-screen min-h-[600px] max-h-[900px] overflow-hidden">
+    <section className="relative min-h-[100dvh] w-full max-h-[900px] overflow-hidden">
       {images.map((src, i) => (
         <div 
           key={i}
@@ -60,7 +60,7 @@ const HeroCarousel = () => {
         </div>
 
         <p className="font-sans-body text-base md:text-lg tracking-widest uppercase animate-float-up-delay" style={{ color: 'hsl(210, 30%, 85%)' }}>
-          09 de Janeiro de 2027 · João Pessoa — PB
+          09 de Janeiro de 2027 · João Pessoa - PB
         </p>
 
         <div className="mt-8 animate-float-up-delay-2">
@@ -68,7 +68,7 @@ const HeroCarousel = () => {
             "Fazei tudo o que Ele vos disser"
           </p>
           <p className="font-sans-body text-xs tracking-widest mt-2" style={{ color: 'hsl(210, 30%, 70%)' }}>
-            — Jo 2,5
+            - Jo 2,5
           </p>
         </div>
       </div>

@@ -1,44 +1,45 @@
-# Projeto Casamento — Lucas & Amanda
+# Projeto Casamento - Lucas & Amanda
 
-Site para celebração do Sacramento do Matrimônio de Lucas e Amanda.
+Site do casamento de Lucas e Amanda com informações da cerimônia, confirmação individual de presença e lista de presentes.
 
 ## Funcionalidades
 
 - Carrossel de fotos e contador regressivo.
-- Corrente de oração com contador de terços.
-- Envio opcional de foto, armazenada de forma protegida.
-- Login e painel administrativo para leitura das intenções.
+- Modal com horário e locais do casamento.
+- Confirmação individual de presença, incluindo respostas positivas e negativas.
+- Modal da lista de presentes com aviso de disponibilidade futura.
+- Consulta das confirmações pelo Dashboard do PocketBase.
 
 ## Arquitetura
 
 - Next.js 14, React, Tailwind CSS e shadcn/ui.
 - PocketBase 0.40.5 com migrations versionadas.
 - Docker Compose com serviços `web` e `pocketbase`.
-- Volume `pocketbase-data` para o SQLite e os uploads.
+- Volume `pocketbase-data` para persistência do SQLite.
 
-O Next.js acessa o PocketBase pela rede interna do Compose. Fotos privadas são entregues pelo próprio Next.js após validação do login administrativo; o navegador não recebe credenciais do PocketBase.
+O Next.js envia as confirmações ao PocketBase pela rede interna do Compose. Convidados podem apenas criar uma confirmação válida; leitura, alteração e exclusão públicas ficam bloqueadas.
 
 ## Execução local com Docker
 
 1. Copie `.env.example` para `.env` e troque as credenciais de exemplo. `PB_ENCRYPTION_KEY` deve ter exatamente 32 caracteres.
-2. Inicie a stack com as portas locais:
+2. Se a porta `8090` já estiver ocupada, altere `POCKETBASE_PORT` no `.env`.
+3. Inicie a stack:
 
 ```sh
-docker compose -f compose.yaml -f compose.local.yaml up --build -d
+node scripts/dev-docker.mjs
 ```
 
-3. Acesse:
+Acesse:
 
 - Site: `http://localhost:3000`
-- Login: `http://localhost:3000/login`
-- Dashboard PocketBase: `http://localhost:8090/_/`
+- Dashboard PocketBase: `http://localhost:8090/_/` ou a porta definida em `POCKETBASE_PORT`.
 
-Na primeira inicialização, a migration cria o schema. Para liberar o acesso a `/login`, entre no Dashboard com o `PB_SUPERUSER`, abra a coleção `admins` e crie o administrador do site com e-mail e senha. Essa conta é independente do superusuário do PocketBase.
+As dependências do frontend permanecem no volume Docker `web-node-modules`. Não é necessário executar `npm install` ou manter `node_modules` na máquina. Alterações no código são refletidas pelo servidor de desenvolvimento.
 
 Para parar os containers sem apagar os dados:
 
 ```sh
-docker compose -f compose.yaml -f compose.local.yaml down
+docker compose -f compose.yaml -f compose.local.yaml -f compose.dev.yaml down
 ```
 
 Não use `down -v` em um ambiente com dados que deseja preservar, pois esse comando remove o volume do PocketBase.
@@ -50,57 +51,37 @@ Com o PocketBase local em execução:
 ```sh
 npm install
 $env:POCKETBASE_URL="http://127.0.0.1:8090"
-$env:AUTH_COOKIE_SECURE="false"
 npm run dev
 ```
 
-## Desenvolvimento com Docker (sem `node_modules` local)
-
-Com Docker Desktop e Node.js instalados, copie `.env.example` para `.env`, preencha os secrets e execute:
-
-```sh
-node scripts/dev-docker.mjs
-```
-
-Ou, de forma equivalente:
-
-```sh
-npm run dev:docker
-```
-
-O script inicia `web` e `pocketbase` em modo de desenvolvimento. O código local é sincronizado para o container e o Next.js atualiza a página ao salvar arquivos. As dependências ficam no volume Docker `web-node-modules`: não é necessário executar `npm install` nem manter `node_modules` na máquina. Se `package-lock.json` mudar, o container atualiza esse volume automaticamente. Use `Ctrl+C` para encerrar os logs e os containers; os dados e volumes permanecem preservados.
-
 ## Deploy no Coolify
 
-Crie um recurso Docker Compose apontando para `compose.yaml` e configure, como secrets, estas variáveis:
+Crie um recurso Docker Compose apontando para `compose.yaml` e configure como secrets:
 
 - `PB_SUPERUSER_EMAIL`: e-mail do Dashboard do PocketBase.
-- `PB_SUPERUSER_PASSWORD`: senha forte e exclusiva para o Dashboard do PocketBase.
+- `PB_SUPERUSER_PASSWORD`: senha forte e exclusiva para o Dashboard.
 - `PB_ENCRYPTION_KEY`: valor aleatório com exatamente 32 caracteres; mantenha-o estável.
-- `AUTH_COOKIE_SECURE=true`.
 - `PB_GOMEMLIMIT` (opcional, padrão `256MiB`).
 
-Associe o domínio público principal ao serviço `web`, porta `3000`. O serviço `pocketbase`, porta `8090`, não precisa de domínio para o funcionamento do site e deve permanecer apenas na rede interna. Se optar por expor o Dashboard do PocketBase, proteja esse domínio no proxy do Coolify. O superusuário é criado ou atualizado em cada inicialização a partir dos secrets `PB_SUPERUSER_EMAIL` e `PB_SUPERUSER_PASSWORD`.
+Associe o domínio público ao serviço `web`, porta `3000`. O serviço `pocketbase`, porta `8090`, deve permanecer na rede interna para o funcionamento do site. Se expuser o Dashboard, proteja o domínio no proxy do Coolify. O superusuário é criado ou atualizado em cada inicialização a partir dos secrets.
 
-Após o primeiro acesso ao Dashboard, abra **Collections** → **admins** → **New record** para criar cada conta que poderá entrar em `/login`. Não há cadastro público para essa coleção. A criação e a troca de senha dessas contas são feitas pelo Dashboard, sem variáveis `PB_ADMIN_*`.
+O volume `pocketbase-data` deve permanecer persistente. Configure backups regulares pelo PocketBase ou pelo provedor.
 
-O volume `pocketbase-data` precisa permanecer persistente. Configure backups regulares pelo PocketBase ou pelo recurso de backup de volumes do provedor.
+## Banco de dados e segurança
 
-## Migrations e segurança
+As migrations em `pocketbase/pb_migrations` são aplicadas automaticamente. A coleção `confirmacoes` armazena:
 
-As migrations em `pocketbase/pb_migrations` são aplicadas automaticamente pelo PocketBase ao iniciar. O schema possui:
+- `nome_completo`: texto obrigatório entre 3 e 120 caracteres.
+- `celular`: 10 ou 11 dígitos, incluindo DDD.
+- `resposta`: `sim` ou `nao`.
+- `created` e `updated`: datas automáticas.
 
-- `admins`: coleção de autenticação sem cadastro público; usuários são geridos pelo Dashboard do PocketBase.
-- `tercos`: criação pública, mas leitura e alteração somente para administradores.
-- `tercos_total`: view pública que expõe apenas a soma, sem nomes, intenções ou arquivos.
-
-O PocketBase usa rate limiting, arquivos protegidos, validação de tamanho/tipo das imagens e criptografia das configurações via `PB_ENCRYPTION_KEY`.
+A coleção permite criação pública validada, mas bloqueia listagem, leitura individual, atualização e exclusão para convidados. O PocketBase aplica rate limiting aos cadastros. As respostas podem ser consultadas por um superusuário no Dashboard.
 
 ## Verificações
 
 ```sh
+npm run test
 npm run build
 docker compose --env-file .env -f compose.yaml config --quiet
-docker compose --env-file .env -f compose.yaml -f compose.local.yaml up --build -d
-docker compose --env-file .env -f compose.yaml -f compose.local.yaml ps
 ```

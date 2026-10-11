@@ -15,12 +15,12 @@ const lato = Lato({
 });
 
 export const metadata: Metadata = {
-  title: "Lucas & Amanda se casam - Rezem por nós'",
-  description: "Celebração do sacramento do Matrimônio de Lucas e Amanda. Ofereça um terço e contribua com nossa caminhada.",
+  title: "Casamento de Lucas & Amanda",
+  description: "Informações e confirmação de presença para o casamento de Lucas e Amanda.",
   authors: [{ name: "Lucas & Amanda" }],
   openGraph: {
-    title: "Lucas & Amanda se casam - Rezem por nós'",
-    description: "Celebração do sacramento do Matrimônio de Lucas e Amanda. Ofereça um terço e contribua com nossa caminhada.",
+    title: "Casamento de Lucas & Amanda",
+    description: "Informações e confirmação de presença para o casamento de Lucas e Amanda.",
     type: "website",
   },
   twitter: {
@@ -28,11 +28,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
       <body className={`${cormorant.variable} ${lato.variable} font-sans antialiased`}>

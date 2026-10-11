@@ -27,7 +27,6 @@ services:
     restart: unless-stopped
     environment:
       POCKETBASE_URL: http://pocketbase:8090
-      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
     depends_on:
       pocketbase:
         condition: service_healthy
