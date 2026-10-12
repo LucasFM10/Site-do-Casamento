@@ -24,7 +24,7 @@ const HeroCarousel = () => {
   return (
     <section className="relative min-h-[100dvh] w-full max-h-[900px] overflow-hidden">
       {images.map((src, i) => (
-        <div 
+        <div
           key={i}
           className="absolute inset-0 w-full h-full transition-opacity duration-[2000ms] ease-in-out"
           style={{ opacity: current === i ? 1 : 0 }}
@@ -56,11 +56,11 @@ const HeroCarousel = () => {
         <div className="gold-divider w-32 md:w-48 my-6 animate-float-up-delay" />
 
         <div className="mb-6 animate-float-up-delay">
-          <Countdown targetDate="2027-01-09T00:00:00" />
+          <Countdown targetDate="2027-01-23T00:00:00" />
         </div>
 
         <p className="font-sans-body text-base md:text-lg tracking-widest uppercase animate-float-up-delay" style={{ color: 'hsl(210, 30%, 85%)' }}>
-          09 de Janeiro de 2027 · João Pessoa - PB
+          23 de Janeiro de 2027 · João Pessoa - PB
         </p>
 
         <div className="mt-8 animate-float-up-delay-2">
