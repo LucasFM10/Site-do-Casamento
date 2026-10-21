@@ -13,6 +13,12 @@ export function formatBrazilianPhone(value: string) {
   return `(${digits.slice(0, 2)}) ${digits.slice(2, prefixLength)}-${digits.slice(prefixLength)}`;
 }
 
+/** DDD (sem zero) + 8 ou 9 dígitos, o mesmo formato que o banco aceita. */
 export function isValidBrazilianPhone(value: string) {
-  return /^\d{10,11}$/.test(normalizeBrazilianPhone(value));
+  return /^[1-9]{2}\d{8,9}$/.test(normalizeBrazilianPhone(value));
+}
+
+/** "(92) 99999-8888" → "5592999998888", formato do banco e do WhatsApp. */
+export function toStoredBrazilianPhone(value: string) {
+  return `55${normalizeBrazilianPhone(value)}`;
 }

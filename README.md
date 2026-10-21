@@ -1,87 +1,112 @@
 # Projeto Casamento - Lucas & Amanda
 
-Site do casamento de Lucas e Amanda com informações da cerimônia, confirmação individual de presença e lista de presentes.
+Site do casamento de Lucas e Amanda: informações da cerimônia, confirmação
+individual de presença e (em breve) lista de presentes com pagamento.
 
-## Funcionalidades
+## Stack
 
-- Carrossel de fotos e contador regressivo.
-- Modal com horário e locais do casamento.
-- Confirmação individual de presença, incluindo respostas positivas e negativas.
-- Modal da lista de presentes com aviso de disponibilidade futura.
-- Consulta das confirmações pelo Dashboard do PocketBase.
+- **Next.js 16** (App Router, saída standalone), **React 19**, **TypeScript**
+  (strict), Tailwind CSS 3 e o `dialog` do shadcn/ui.
+- **PostgreSQL 17** com **Drizzle ORM** (`postgres.js`). Esquema em
+  `src/db/esquema.ts`, migrações em `drizzle/`.
+- **Docker Compose** para o deploy no Coolify: `web`, `migrar`, `postgres`,
+  `backup`. Detalhes em [docs/banco-e-deploy.md](docs/banco-e-deploy.md).
+- Integrações configuradas só por variáveis de ambiente: **Mercado Pago**
+  (pagamentos e webhook) e **Evolution API** (WhatsApp).
 
-## Arquitetura
+## Estrutura
 
-- Next.js 14, React, Tailwind CSS e shadcn/ui.
-- PocketBase 0.40.5 com migrations versionadas.
-- Docker Compose com serviços `web` e `pocketbase`.
-- Volume `pocketbase-data` para persistência do SQLite.
-
-O Next.js envia as confirmações ao PocketBase pela rede interna do Compose. Convidados podem apenas criar uma confirmação válida; leitura, alteração e exclusão públicas ficam bloqueadas.
-
-## Execução local com Docker
-
-1. Copie `.env.example` para `.env` e troque as credenciais de exemplo. `PB_ENCRYPTION_KEY` deve ter exatamente 32 caracteres.
-2. Se a porta `8090` já estiver ocupada, altere `POCKETBASE_PORT` no `.env`.
-3. Inicie a stack:
-
-```sh
-node scripts/dev-docker.mjs
+```
+src/app/                    páginas, Server Action da confirmação (actions.ts)
+src/app/api/saude           health check (site + banco)
+src/app/api/mercadopago     webhook assinado e idempotente
+src/components/             landing page (HeroCarousel, Countdown, WeddingActions)
+src/db/esquema.ts           tabelas, checks e índices
+src/lib/servidor/           código só de servidor: banco, Mercado Pago,
+                            pedidos de presentes, Evolution API, WhatsApp
+scripts/migrar.ts           migrador (roda a cada deploy)
+scripts/permissoes.ts       permissões mínimas do papel do site no banco
+tests/banco/                migrações e permissões num PostgreSQL real (Docker)
 ```
 
-Acesse:
+## Banco de dados
 
-- Site: `http://localhost:3000`
-- Dashboard PocketBase: `http://localhost:8090/_/` ou a porta definida em `POCKETBASE_PORT`.
+| Tabela | Para quê |
+|---|---|
+| `confirmacoes` | Confirmações de presença: nome, telefone (`55` + DDD + número), `sim`/`nao` |
+| `administradores` | Quem poderá entrar no painel. **Só o dono do banco cria** |
+| `presentes` | Catálogo da lista de presentes (preço em centavos) |
+| `pedidos` | Compra de presente sem login; status muda só pelo pagamento conferido |
+| `webhook_eventos` | Idempotência das notificações do Mercado Pago |
 
-As dependências do frontend permanecem no volume Docker `web-node-modules`. Não é necessário executar `npm install` ou manter `node_modules` na máquina. Alterações no código são refletidas pelo servidor de desenvolvimento.
+O site entra no banco com o papel `site`, de permissões mínimas: registra
+confirmações, cria pedidos pendentes e atualiza status de pagamento, mas não
+cria administradores, não mexe no catálogo, não apaga nada e não altera a
+estrutura. Criar um administrador (como dono do banco):
 
-Para parar os containers sem apagar os dados:
-
-```sh
-docker compose -f compose.yaml -f compose.local.yaml -f compose.dev.yaml down
+```sql
+INSERT INTO administradores (nome, telefone) VALUES ('Lucas', '5583999999999');
 ```
 
-Não use `down -v` em um ambiente com dados que deseja preservar, pois esse comando remove o volume do PocketBase.
+## Rodar localmente
 
-## Desenvolvimento do frontend sem container
+```bash
+cp .env.example .env    # preencher PGPASSWORD e POSTGRES_PASSWORD (16+ caracteres)
+docker compose -f docker-compose.yaml -f compose.local.yaml up --build
+```
 
-Com o PocketBase local em execução:
+Site em `http://localhost:3000`; Postgres em `127.0.0.1:55433`.
 
-```sh
+Para desenvolver com recarga automática, suba só o banco e o migrador e rode
+o Next fora do Docker (o `.env` já aponta para `127.0.0.1:55433`):
+
+```bash
+docker compose -f docker-compose.yaml -f compose.local.yaml up -d postgres migrar
 npm install
-$env:POCKETBASE_URL="http://127.0.0.1:8090"
 npm run dev
 ```
 
-## Deploy no Coolify
-
-Crie um recurso Docker Compose apontando para `compose.yaml` e configure como secrets:
-
-- `PB_SUPERUSER_EMAIL`: e-mail do Dashboard do PocketBase.
-- `PB_SUPERUSER_PASSWORD`: senha forte e exclusiva para o Dashboard.
-- `PB_ENCRYPTION_KEY`: valor aleatório com exatamente 32 caracteres; mantenha-o estável.
-- `PB_GOMEMLIMIT` (opcional, padrão `256MiB`).
-
-Associe o domínio público ao serviço `web`, porta `3000`. O serviço `pocketbase`, porta `8090`, deve permanecer na rede interna para o funcionamento do site. Se expuser o Dashboard, proteja o domínio no proxy do Coolify. O superusuário é criado ou atualizado em cada inicialização a partir dos secrets.
-
-O volume `pocketbase-data` deve permanecer persistente. Configure backups regulares pelo PocketBase ou pelo provedor.
-
-## Banco de dados e segurança
-
-As migrations em `pocketbase/pb_migrations` são aplicadas automaticamente. A coleção `confirmacoes` armazena:
-
-- `nome_completo`: texto obrigatório entre 3 e 120 caracteres.
-- `celular`: 10 ou 11 dígitos, incluindo DDD.
-- `resposta`: `sim` ou `nao`.
-- `created` e `updated`: datas automáticas.
-
-A coleção permite criação pública validada, mas bloqueia listagem, leitura individual, atualização e exclusão para convidados. O PocketBase aplica rate limiting aos cadastros. As respostas podem ser consultadas por um superusuário no Dashboard.
-
 ## Verificações
 
-```sh
-npm run test
+```bash
+npm run lint
+npm test              # testes de unidade (vitest)
 npm run build
-docker compose --env-file .env -f compose.yaml config --quiet
+npm run test:banco    # migrador e permissões num PostgreSQL de teste (precisa do Docker)
 ```
+
+## Mudar o esquema
+
+```bash
+# editar src/db/esquema.ts (e scripts/permissoes.ts, se houver tabela nova)
+npm run db:gerar      # gera drizzle/NNNN_*.sql; revisar antes do commit
+npm run test:banco
+```
+
+Tabela nova sem entrada em `scripts/permissoes.ts` faz o migrador parar com
+erro, de propósito.
+
+## Integrações
+
+Todas opcionais e desligadas enquanto as variáveis estiverem vazias.
+
+**WhatsApp (Evolution API).** Com `EVOLUTION_API_URL`, `EVOLUTION_API_KEY`
+e `EVOLUTION_INSTANCE` preenchidas, o site envia as mensagens cujo texto
+estiver definido:
+
+| Variável | Quando |
+|---|---|
+| `WHATSAPP_MSG_CONFIRMACAO_SIM` | convidado confirmou presença |
+| `WHATSAPP_MSG_CONFIRMACAO_NAO` | convidado avisou que não vai |
+| `WHATSAPP_MSG_PRESENTE_APROVADO` | pagamento de presente aprovado |
+
+No texto, `{nome}` vira o primeiro nome e `{presente}` o nome do presente;
+`\n` quebra linha. O envio acontece depois da resposta ao convidado e uma
+falha só vai para o log (`src/lib/servidor/whatsapp.ts`).
+
+**Mercado Pago.** `MP_ACCESS_TOKEN` (secreto), `MP_PUBLIC_KEY` e
+`MP_WEBHOOK_SECRET`. A base de pagamento está em
+`src/lib/servidor/pedidos.ts` (Pix e cartão, preço sempre lido do banco,
+confirmação conferindo valor, moeda e referência no próprio Mercado Pago) e
+o webhook em `/api/mercadopago/webhook`. A página de checkout ainda não
+existe. Configuração do webhook: [docs/banco-e-deploy.md](docs/banco-e-deploy.md).

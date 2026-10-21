@@ -1,0 +1,6 @@
+# Arquivos lidos em Linux dentro do Docker: sempre com LF,
+# mesmo quando o repositório é clonado no Windows.
+*.sh text eol=lf
+drizzle/** text eol=lf
+Dockerfile text eol=lf
+*.yaml text eol=lf

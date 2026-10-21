@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatBrazilianPhone, isValidBrazilianPhone, normalizeBrazilianPhone } from "./phone";
+import { formatBrazilianPhone, isValidBrazilianPhone, normalizeBrazilianPhone, toStoredBrazilianPhone } from "./phone";
 
 describe("Brazilian phone helpers", () => {
   it("formats an eleven-digit mobile number", () => {
@@ -14,8 +14,13 @@ describe("Brazilian phone helpers", () => {
     expect(normalizeBrazilianPhone("(92) 99999-8888 extra 123")).toBe("92999998888");
   });
 
-  it("rejects numbers without DDD or with too many digits", () => {
+  it("rejects numbers without DDD, with too many digits or with an invalid DDD", () => {
     expect(isValidBrazilianPhone("9999-8888")).toBe(false);
+    expect(isValidBrazilianPhone("(02) 99999-8888")).toBe(false);
     expect(isValidBrazilianPhone("(92) 99999-8888")).toBe(true);
+  });
+
+  it("stores the number with the country code", () => {
+    expect(toStoredBrazilianPhone("(83) 99999-8888")).toBe("5583999998888");
   });
 });

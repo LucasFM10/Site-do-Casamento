@@ -65,7 +65,7 @@ const HeroCarousel = () => {
 
         <div className="mt-8 animate-float-up-delay-2">
           <p className="font-serif-display text-xl md:text-2xl italic font-light" style={{ color: 'hsl(40, 60%, 85%)' }}>
-            "Fazei tudo o que Ele vos disser"
+            &quot;Fazei tudo o que Ele vos disser&quot;
           </p>
           <p className="font-sans-body text-xs tracking-widest mt-2" style={{ color: 'hsl(210, 30%, 70%)' }}>
             - Jo 2,5

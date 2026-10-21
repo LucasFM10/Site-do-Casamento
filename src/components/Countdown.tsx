@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 
 interface TimeLeft {
   days: number;
@@ -9,49 +9,46 @@ interface TimeLeft {
   seconds: number;
 }
 
-const Countdown = ({ targetDate }: { targetDate: string }) => {
-  const calculateTimeLeft = (): TimeLeft => {
-    const difference = +new Date(targetDate) - +new Date();
-    let timeLeft: TimeLeft = { days: 0, hours: 0, minutes: 0, seconds: 0 };
+function calculateTimeLeft(targetDate: string, now: number): TimeLeft {
+  const difference = +new Date(targetDate) - now;
+  if (difference <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0 };
 
-    if (difference > 0) {
-      timeLeft = {
-        days: Math.floor(difference / (1000 * 60 * 60 * 24)),
-        hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
-        minutes: Math.floor((difference / 1000 / 60) % 60),
-        seconds: Math.floor((difference / 1000) % 60),
-      };
-    }
-
-    return timeLeft;
+  return {
+    days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+    hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+    minutes: Math.floor((difference / 1000 / 60) % 60),
+    seconds: Math.floor((difference / 1000) % 60),
   };
+}
 
-  const [timeLeft, setTimeLeft] = useState<TimeLeft>(calculateTimeLeft());
-  const [hasMounted, setHasMounted] = useState(false);
+function subscribeToClock(onTick: () => void) {
+  const timer = setInterval(onTick, 1000);
+  return () => clearInterval(timer);
+}
 
-  useEffect(() => {
-    setHasMounted(true);
-    const timer = setInterval(() => {
-      setTimeLeft(calculateTimeLeft());
-    }, 1000);
+const currentSecond = () => Math.floor(Date.now() / 1000) * 1000;
+// No servidor e na hidratação não há relógio: mostra o placeholder.
+const noClock = () => null;
 
-    return () => clearInterval(timer);
-  }, [targetDate]);
+const TimeDisplay = ({ value, label }: { value: number; label: string }) => (
+  <div className="flex flex-col items-center mx-2 md:mx-4">
+    <span className="text-3xl md:text-5xl font-serif-display font-light text-white mb-1">
+      {value.toString().padStart(2, '0')}
+    </span>
+    <span className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-gold-light opacity-80">
+      {label}
+    </span>
+  </div>
+);
 
-  if (!hasMounted) {
+const Countdown = ({ targetDate }: { targetDate: string }) => {
+  const now = useSyncExternalStore(subscribeToClock, currentSecond, noClock);
+
+  if (now === null) {
     return <div className="h-24" />; // Placeholder para manter o layout durante a hidratação
   }
 
-  const TimeDisplay = ({ value, label }: { value: number; label: string }) => (
-    <div className="flex flex-col items-center mx-2 md:mx-4">
-      <span className="text-3xl md:text-5xl font-serif-display font-light text-white mb-1">
-        {value.toString().padStart(2, '0')}
-      </span>
-      <span className="text-[10px] md:text-xs tracking-[0.2em] uppercase text-gold-light opacity-80">
-        {label}
-      </span>
-    </div>
-  );
+  const timeLeft = calculateTimeLeft(targetDate, now);
 
   return (
     <div className="flex items-center justify-center py-4 animate-fade-in">

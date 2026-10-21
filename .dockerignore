@@ -1,8 +1,36 @@
-.git
-.next
+# Contexto de build do site (Dockerfile na raiz).
+
+# Dependências e build locais
 node_modules
-npm-debug.log*
-.env
-.env.*
+.next
+out
+build
+coverage
+*.tsbuildinfo
+next-env.d.ts
+
+# Segredos: nunca entram na imagem
+.env*
 !.env.example
-pocketbase/pb_data
+*.pem
+
+# Git e ferramentas
+.git
+.gitignore
+.claude
+.vscode
+.idea
+
+# Testes, saídas locais e documentação
+tests
+dist
+docs
+*.md
+docker-compose*.yaml
+compose.*.yaml
+Dockerfile
+.dockerignore
+
+# Sistema
+.DS_Store
+npm-debug.log*

@@ -1,0 +1,576 @@
+{
+  "id": "5300694f-1975-4bfc-a8e7-c8245417d0b7",
+  "prevId": "30b28fd0-2754-4873-82b0-e4f0105b49dd",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.administradores": {
+      "name": "administradores",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telefone": {
+          "name": "telefone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ativo": {
+          "name": "ativo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "administradores_telefone_unico": {
+          "name": "administradores_telefone_unico",
+          "columns": [
+            {
+              "expression": "telefone",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "administradores_nome_tamanho": {
+          "name": "administradores_nome_tamanho",
+          "value": "char_length(\"administradores\".\"nome\") between 1 and 120"
+        },
+        "administradores_telefone_formato": {
+          "name": "administradores_telefone_formato",
+          "value": "\"administradores\".\"telefone\" ~ '^55[1-9]{2}[0-9]{8,9}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.confirmacoes": {
+      "name": "confirmacoes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nome_completo": {
+          "name": "nome_completo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telefone": {
+          "name": "telefone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resposta": {
+          "name": "resposta",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "confirmacoes_criado": {
+          "name": "confirmacoes_criado",
+          "columns": [
+            {
+              "expression": "criado_em",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "confirmacoes_telefone": {
+          "name": "confirmacoes_telefone",
+          "columns": [
+            {
+              "expression": "telefone",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "confirmacoes_nome_tamanho": {
+          "name": "confirmacoes_nome_tamanho",
+          "value": "char_length(\"confirmacoes\".\"nome_completo\") between 3 and 120"
+        },
+        "confirmacoes_telefone_formato": {
+          "name": "confirmacoes_telefone_formato",
+          "value": "\"confirmacoes\".\"telefone\" ~ '^55[1-9]{2}[0-9]{8,9}$'"
+        },
+        "confirmacoes_resposta_valida": {
+          "name": "confirmacoes_resposta_valida",
+          "value": "resposta in ('sim', 'nao')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.pedidos": {
+      "name": "pedidos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "presente_id": {
+          "name": "presente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "valor_centavos": {
+          "name": "valor_centavos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "meio": {
+          "name": "meio",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendente'"
+        },
+        "comprador_nome": {
+          "name": "comprador_nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "comprador_email": {
+          "name": "comprador_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "comprador_telefone": {
+          "name": "comprador_telefone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "mp_payment_id": {
+          "name": "mp_payment_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "external_reference": {
+          "name": "external_reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "pedidos_external_reference_unico": {
+          "name": "pedidos_external_reference_unico",
+          "columns": [
+            {
+              "expression": "external_reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "pedidos_idempotency_key_unico": {
+          "name": "pedidos_idempotency_key_unico",
+          "columns": [
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "pedidos_mp_payment_id_unico": {
+          "name": "pedidos_mp_payment_id_unico",
+          "columns": [
+            {
+              "expression": "mp_payment_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "pedidos_presente": {
+          "name": "pedidos_presente",
+          "columns": [
+            {
+              "expression": "presente_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "pedidos_presente_id_presentes_id_fk": {
+          "name": "pedidos_presente_id_presentes_id_fk",
+          "tableFrom": "pedidos",
+          "columnsFrom": [
+            "presente_id"
+          ],
+          "tableTo": "presentes",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "restrict"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "pedidos_valor": {
+          "name": "pedidos_valor",
+          "value": "\"pedidos\".\"valor_centavos\" >= 1"
+        },
+        "pedidos_meio_valido": {
+          "name": "pedidos_meio_valido",
+          "value": "meio in ('cartao', 'pix')"
+        },
+        "pedidos_status_valido": {
+          "name": "pedidos_status_valido",
+          "value": "status in ('pendente', 'aprovado', 'recusado', 'cancelado', 'reembolsado')"
+        },
+        "pedidos_comprador_nome_tamanho": {
+          "name": "pedidos_comprador_nome_tamanho",
+          "value": "char_length(\"pedidos\".\"comprador_nome\") between 1 and 120"
+        },
+        "pedidos_comprador_email_tamanho": {
+          "name": "pedidos_comprador_email_tamanho",
+          "value": "char_length(\"pedidos\".\"comprador_email\") between 3 and 254"
+        },
+        "pedidos_comprador_telefone_formato": {
+          "name": "pedidos_comprador_telefone_formato",
+          "value": "\"pedidos\".\"comprador_telefone\" = '' or \"pedidos\".\"comprador_telefone\" ~ '^55[1-9]{2}[0-9]{8,9}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.presentes": {
+      "name": "presentes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nome": {
+          "name": "nome",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descricao": {
+          "name": "descricao",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "preco_centavos": {
+          "name": "preco_centavos",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "imagem_url": {
+          "name": "imagem_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "ordem": {
+          "name": "ordem",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "ativo": {
+          "name": "ativo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "criado_em": {
+          "name": "criado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "atualizado_em": {
+          "name": "atualizado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "presentes_vitrine": {
+          "name": "presentes_vitrine",
+          "columns": [
+            {
+              "expression": "ativo",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "ordem",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "presentes_nome_tamanho": {
+          "name": "presentes_nome_tamanho",
+          "value": "char_length(\"presentes\".\"nome\") between 1 and 160"
+        },
+        "presentes_descricao_tamanho": {
+          "name": "presentes_descricao_tamanho",
+          "value": "char_length(\"presentes\".\"descricao\") <= 2000"
+        },
+        "presentes_preco": {
+          "name": "presentes_preco",
+          "value": "\"presentes\".\"preco_centavos\" >= 1"
+        },
+        "presentes_ordem": {
+          "name": "presentes_ordem",
+          "value": "\"presentes\".\"ordem\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.webhook_eventos": {
+      "name": "webhook_eventos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "origem": {
+          "name": "origem",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "evento_id": {
+          "name": "evento_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "recurso_id": {
+          "name": "recurso_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "''"
+        },
+        "recebido_em": {
+          "name": "recebido_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "processado_em": {
+          "name": "processado_em",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "webhook_eventos_unico": {
+          "name": "webhook_eventos_unico",
+          "columns": [
+            {
+              "expression": "origem",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "evento_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "views": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

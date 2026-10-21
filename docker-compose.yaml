@@ -1,0 +1,149 @@
+# Deploy no Coolify (build pack "Docker Compose", a partir do GitHub).
+# Guia completo: docs/banco-e-deploy.md.
+#
+#   web          Next.js: site, confirmação de presença, webhook (domínio público)
+#   migrar       aplica as migrações e as permissões do banco, e fica parado
+#   postgres     PostgreSQL 17 com volume persistente, sem porta nem domínio
+#   backup       pg_dump diário para o volume `backups`
+#
+# Domínio: SERVICE_URL_WEB_3000 pede ao Coolify um domínio para o `web`.
+# Nenhum outro serviço tem domínio, e nenhuma porta fica aberta para a
+# internet: o banco só é alcançado pela rede interna do Docker.
+#
+# Segredos: SERVICE_USER_* e SERVICE_PASSWORD_* são gerados pelo Coolify e se
+# mantêm entre deploys. As variáveis ${...} sem valor aparecem em
+# "Environment Variables" para preencher. Para rodar localmente, ver
+# compose.local.yaml.
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrar:
+        condition: service_healthy
+    environment:
+      - SERVICE_URL_WEB_3000
+      # Banco: o site entra com o papel `site`, de permissões mínimas, criado
+      # pelo migrador. Nunca recebe a senha do dono do banco.
+      - PGHOST=postgres
+      - PGPORT=5432
+      - PGDATABASE=${POSTGRES_DB:-casamento}
+      - PGUSER=site
+      - PGPASSWORD=${SERVICE_PASSWORD_64_PGSITE}
+      # Mercado Pago
+      - MP_ACCESS_TOKEN=${MP_ACCESS_TOKEN:-}
+      - MP_PUBLIC_KEY=${MP_PUBLIC_KEY:-}
+      - MP_WEBHOOK_SECRET=${MP_WEBHOOK_SECRET:-}
+      # Evolution API (WhatsApp). Sem as três, nenhuma mensagem é enviada.
+      - EVOLUTION_API_URL=${EVOLUTION_API_URL:-}
+      - EVOLUTION_API_KEY=${EVOLUTION_API_KEY:-}
+      - EVOLUTION_INSTANCE=${EVOLUTION_INSTANCE:-}
+      # Textos das mensagens. Vazio: aquela mensagem não é enviada.
+      - WHATSAPP_MSG_CONFIRMACAO_SIM=${WHATSAPP_MSG_CONFIRMACAO_SIM:-}
+      - WHATSAPP_MSG_CONFIRMACAO_NAO=${WHATSAPP_MSG_CONFIRMACAO_NAO:-}
+      - WHATSAPP_MSG_PRESENTE_APROVADO=${WHATSAPP_MSG_PRESENTE_APROVADO:-}
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/api/saude"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # Roda a cada deploy, antes do site: migrações (drizzle/), papel e
+  # permissões do site (scripts/permissoes.ts). Depois fica parado e
+  # saudável, para o site poder subir. Se falhar, o site não sobe: o deploy
+  # aparece com erro no Coolify.
+  migrar:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["sh", "-c", "rm -f /tmp/migrado && node migrar.cjs && touch /tmp/migrado && exec sleep 2147483647"]
+    init: true
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - PGHOST=postgres
+      - PGPORT=5432
+      - PGDATABASE=${POSTGRES_DB:-casamento}
+      # Dono do banco: só o migrador e o backup recebem.
+      - POSTGRES_USER=${SERVICE_USER_POSTGRES}
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES}
+      # Papel do site que o migrador cria e mantém (mesma senha do `web`).
+      - PGUSER=site
+      - PGPASSWORD=${SERVICE_PASSWORD_64_PGSITE}
+    healthcheck:
+      test: ["CMD", "test", "-f", "/tmp/migrado"]
+      interval: 5s
+      timeout: 3s
+      retries: 120
+      start_period: 10s
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${SERVICE_USER_POSTGRES}
+      - POSTGRES_PASSWORD=${SERVICE_PASSWORD_POSTGRES}
+      - POSTGRES_DB=${POSTGRES_DB:-casamento}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  # Backup lógico (pg_dump, formato custom) quando o serviço inicia e a cada
+  # 24 h. Guarda BACKUP_DIAS dias no volume `backups`, legível só pelo root
+  # (o dump tem dados pessoais dos convidados).
+  backup:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    init: true
+    depends_on:
+      migrar:
+        condition: service_healthy
+    environment:
+      - PGHOST=postgres
+      - PGDATABASE=${POSTGRES_DB:-casamento}
+      - PGUSER=${SERVICE_USER_POSTGRES}
+      - PGPASSWORD=${SERVICE_PASSWORD_POSTGRES}
+      - BACKUP_DIAS=${BACKUP_DIAS:-14}
+    volumes:
+      - backups:/backups
+    entrypoint:
+      - sh
+      - -c
+      - |
+        umask 077
+        while true; do
+          arquivo="/backups/casamento-$$(date -u +%Y%m%dT%H%M%SZ).dump"
+          if pg_dump --format=custom --no-owner --file="$$arquivo.parcial"; then
+            mv "$$arquivo.parcial" "$$arquivo"
+            echo "Backup gravado: $$arquivo"
+          else
+            rm -f "$$arquivo.parcial"
+            echo "Backup falhou." >&2
+          fi
+          find /backups -name 'casamento-*.dump' -mtime +"$$BACKUP_DIAS" -delete
+          sleep 86400
+        done
+    # Saudável enquanto houver dump das últimas 26 h.
+    healthcheck:
+      test: ["CMD-SHELL", "find /backups -name 'casamento-*.dump' -mmin -1560 | grep -q ."]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+volumes:
+  postgres_data:
+  backups:

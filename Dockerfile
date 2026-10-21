@@ -1,49 +1,44 @@
-FROM node:22.20.0-alpine3.22 AS dependencies
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci \
-    && cp package-lock.json node_modules/.wedding-grace-package-lock.json
+# Imagem do site (Next.js 16, saída standalone) e do migrador do banco.
+# A mesma imagem serve aos serviços `web` (node server.js) e `migrar`
+# (node migrar.cjs) do docker-compose.yaml.
 
-FROM node:22.20.0-alpine3.22 AS development
-WORKDIR /app
-
-ENV NEXT_TELEMETRY_DISABLED=1 \
-    WATCHPACK_POLLING=true
-
-COPY package.json package-lock.json ./
-RUN npm ci \
-    && cp package-lock.json node_modules/.wedding-grace-package-lock.json
-COPY scripts/docker-dev-entrypoint.sh /usr/local/bin/docker-dev-entrypoint
-RUN chmod +x /usr/local/bin/docker-dev-entrypoint
-
-EXPOSE 3000
-
-CMD ["docker-dev-entrypoint"]
-
-FROM node:22.20.0-alpine3.22 AS builder
-WORKDIR /app
+FROM node:24-alpine AS base
 ENV NEXT_TELEMETRY_DISABLED=1
-COPY --from=dependencies /app/node_modules ./node_modules
-COPY . .
-RUN npm run build
 
-FROM node:22.20.0-alpine3.22 AS runtime
+# 1. Dependências, instaladas a partir do lockfile.
+FROM base AS deps
 WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
 
+# 2. Build. Não usa variáveis secretas: tudo que é segredo é lido em tempo
+#    de execução, no servidor. O migrador é empacotado num arquivo só
+#    (dist/migrar.cjs), sem precisar de node_modules.
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build && npm run db:empacotar
+
+# 3. Execução: só o necessário, com usuário sem privilégios.
+FROM base AS runner
+WORKDIR /app
 ENV NODE_ENV=production \
-    NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
     HOSTNAME=0.0.0.0
 
-RUN addgroup --system --gid 1001 nodejs \
-    && adduser --system --uid 1001 nextjs
+RUN addgroup -S -g 1001 nodejs && adduser -S -u 1001 -G nodejs nextjs
 
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/dist/migrar.cjs ./migrar.cjs
+COPY --from=builder --chown=nextjs:nodejs /app/drizzle ./drizzle
 
 USER nextjs
-
 EXPOSE 3000
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -q -O /dev/null http://127.0.0.1:3000/api/saude || exit 1
 
 CMD ["node", "server.js"]

@@ -1,7 +1,10 @@
 "use server";
 
-import { normalizeBrazilianPhone } from "@/lib/phone";
-import { createPocketBase } from "@/utils/pocketbase/server";
+import { after } from "next/server";
+import { confirmacoes } from "@/db/esquema";
+import { isValidBrazilianPhone, toStoredBrazilianPhone } from "@/lib/phone";
+import { banco, mensagemDoErro } from "@/lib/servidor/banco";
+import { avisarPorWhatsapp } from "@/lib/servidor/whatsapp";
 
 export type AttendanceResponse = "sim" | "nao";
 
@@ -15,7 +18,7 @@ function normalizeFullName(value: FormDataEntryValue | null) {
 
 export async function registerAttendance(formData: FormData): Promise<AttendanceResult> {
   const fullName = normalizeFullName(formData.get("nomeCompleto"));
-  const phone = normalizeBrazilianPhone(String(formData.get("celular") || ""));
+  const rawPhone = String(formData.get("celular") || "");
   const response = String(formData.get("resposta") || "") as AttendanceResponse;
   const website = String(formData.get("website") || "").trim();
 
@@ -27,7 +30,7 @@ export async function registerAttendance(formData: FormData): Promise<Attendance
     return { success: false, error: "Informe seu nome completo." };
   }
 
-  if (!/^\d{10,11}$/.test(phone)) {
+  if (!isValidBrazilianPhone(rawPhone)) {
     return { success: false, error: "Informe um celular brasileiro válido com DDD." };
   }
 
@@ -35,20 +38,27 @@ export async function registerAttendance(formData: FormData): Promise<Attendance
     return { success: false, error: "Selecione se poderá comparecer." };
   }
 
-  try {
-    const pb = createPocketBase();
-    await pb.collection("confirmacoes").create({
-      nome_completo: fullName,
-      celular: phone,
-      resposta: response,
-    });
+  const telefone = toStoredBrazilianPhone(rawPhone);
 
-    return { success: true, response };
+  try {
+    const db = await banco();
+    await db.insert(confirmacoes).values({ nomeCompleto: fullName, telefone, resposta: response });
   } catch (error) {
-    console.error("Erro ao registrar confirmação no PocketBase:", error);
+    console.error("Erro ao registrar confirmação:", mensagemDoErro(error));
     return {
       success: false,
       error: "Não foi possível registrar sua confirmação. Tente novamente em instantes.",
     };
   }
+
+  // Depois da resposta ao convidado: o WhatsApp não atrasa nem desfaz a confirmação.
+  after(() =>
+    avisarPorWhatsapp(
+      response === "sim" ? "WHATSAPP_MSG_CONFIRMACAO_SIM" : "WHATSAPP_MSG_CONFIRMACAO_NAO",
+      telefone,
+      { nome: fullName.split(" ")[0] },
+    ),
+  );
+
+  return { success: true, response };
 }
