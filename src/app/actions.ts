@@ -4,6 +4,8 @@ import { after } from "next/server";
 import { confirmacoes } from "@/db/esquema";
 import { isValidBrazilianPhone, toStoredBrazilianPhone } from "@/lib/phone";
 import { banco, mensagemDoErro } from "@/lib/servidor/banco";
+import { consumirLimite } from "@/lib/servidor/limites";
+import { ipDoCliente } from "@/lib/servidor/requisicao";
 import { avisarPorWhatsapp } from "@/lib/servidor/whatsapp";
 
 export type AttendanceResponse = "sim" | "nao";
@@ -41,6 +43,10 @@ export async function registerAttendance(formData: FormData): Promise<Attendance
   const telefone = toStoredBrazilianPhone(rawPhone);
 
   try {
+    // Contra robôs: no máximo 30 confirmações por hora do mesmo endereço.
+    if (!(await consumirLimite(`rsvp:ip:${await ipDoCliente()}`, 30, 60))) {
+      return { success: false, error: "Muitas confirmações enviadas em pouco tempo. Tente novamente mais tarde." };
+    }
     const db = await banco();
     await db.insert(confirmacoes).values({ nomeCompleto: fullName, telefone, resposta: response });
   } catch (error) {

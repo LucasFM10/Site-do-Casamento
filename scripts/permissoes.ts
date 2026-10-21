@@ -7,8 +7,11 @@ import type { Sql } from "postgres";
  * Tudo o que não está aqui é negado: o site não cria nem altera tabelas, não
  * lê o controle de migrações (esquema `drizzle`), não cria nem altera
  * administradores, não apaga confirmação nem pedido e não muda valor,
- * presente ou comprador de pedido já gravado. A trava de criação (pedido
- * nasce pendente) está no gatilho da migração 0001.
+ * presente, comprador ou mensagem de pedido já gravado. A trava de criação
+ * (pedido nasce pendente) está no gatilho da migração 0001.
+ *
+ * O painel (/admin, só administrador autenticado) é quem escreve no
+ * catálogo, nas imagens e nas configurações.
  *
  * Aplicadas pelo migrador a cada deploy, a partir do zero: o que sair desta
  * lista deixa de valer no deploy seguinte. Tabela nova sem entrada aqui faz o
@@ -25,7 +28,25 @@ export const PERMISSOES: Record<string, Permissao> = {
   confirmacoes: { inserir: true },
   // Administradores só pelo dono do banco.
   administradores: {},
-  presentes: {},
+  sessoes_admin: { inserir: true, apagar: true },
+  limite_tentativas: { inserir: true, apagar: true },
+  configuracoes: { inserir: true, atualizar: ["valor", "atualizado_em"] },
+  presentes: {
+    inserir: true,
+    // Só apaga presente sem pedido (a chave estrangeira impede o resto).
+    apagar: true,
+    atualizar: [
+      "nome",
+      "descricao",
+      "preco_centavos",
+      "ordem",
+      "ativo",
+      "quantidade_maxima",
+      "removido_em",
+      "atualizado_em",
+    ],
+  },
+  imagens: { inserir: true, apagar: true, atualizar: ["ordem"] },
   pedidos: { inserir: true, atualizar: ["status", "mp_payment_id", "atualizado_em"] },
   webhook_eventos: { inserir: true, atualizar: ["processado_em"] },
 };

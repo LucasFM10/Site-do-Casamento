@@ -1,8 +1,10 @@
 "use client";
 
 import { FormEvent, useRef, useState } from "react";
-import { CalendarHeart, Check, Gift, Loader2, MapPin, Phone, UserCheck } from "lucide-react";
+import Link from "next/link";
+import { CalendarHeart, Check, ExternalLink, Gift, Loader2, MapPin, Phone, UserCheck } from "lucide-react";
 import { registerAttendance, type AttendanceResponse } from "@/app/actions";
+import { dataPorExtenso, horarioPorExtenso, type Configuracoes } from "@/lib/configuracoes";
 import { formatBrazilianPhone, isValidBrazilianPhone } from "@/lib/phone";
 import {
   Dialog,
@@ -15,19 +17,62 @@ import {
 
 type FormErrors = Partial<Record<"name" | "phone" | "response", string>>;
 
+// Compacto para caber na página inicial em tela única (a altura acompanha a tela).
 const actionButtonClass =
-  "group flex min-h-16 w-full items-center justify-center gap-3 rounded-lg border border-gold/50 bg-white px-5 py-4 font-sans-body text-sm font-bold uppercase tracking-[0.12em] text-marian-deep shadow-[0_10px_30px_hsla(var(--marian-deep),0.06)] transition duration-300 hover:-translate-y-0.5 hover:border-gold hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marian-deep focus-visible:ring-offset-2 active:translate-y-0 sm:min-h-20 sm:text-base";
+  "group flex min-h-12 w-full items-center justify-center gap-3 rounded-lg border border-gold/50 bg-white px-5 py-[clamp(0.6rem,1.8dvh,1rem)] font-sans-body text-xs font-bold uppercase tracking-[0.12em] text-marian-deep shadow-[0_10px_30px_hsla(var(--marian-deep),0.06)] transition duration-300 hover:-translate-y-0.5 hover:border-gold hover:bg-cream focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold-light focus-visible:ring-offset-2 focus-visible:ring-offset-marian-deep active:translate-y-0 sm:text-sm md:px-4 md:text-[0.8rem] lg:text-sm paisagem:min-h-10 paisagem:gap-2 paisagem:px-3 paisagem:text-[0.7rem] paisagem:tracking-[0.08em]";
 
 const inputClass =
   "w-full rounded-lg border border-border bg-white px-4 py-3 font-sans-body text-base text-foreground outline-none transition placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60";
 
-const WEDDING_DETAILS = {
-  ceremonyTime: "11h30",
-  ceremonyPlace: "Paróquia São Pedro Pescador, Manaíra",
-  receptionPlace: "A definir",
-} as const;
+const detailLabelClass = "mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-gold";
 
-function InformationDialog() {
+function MapLink({ href }: { href: string }) {
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="mt-2 inline-flex items-center gap-1.5 text-sm font-bold text-primary underline-offset-4 hover:underline"
+    >
+      Ver no mapa
+      <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+      <span className="sr-only">(abre em outra aba)</span>
+    </a>
+  );
+}
+
+function Place({
+  label,
+  time,
+  place,
+  address,
+  map,
+}: {
+  label: string;
+  time: string;
+  place: string;
+  address: string;
+  map: string;
+}) {
+  if (!time && !place && !address) return null;
+  return (
+    <div>
+      <dt className={detailLabelClass}>
+        <MapPin className="h-4 w-4" aria-hidden="true" />
+        {label}
+      </dt>
+      <dd className="text-marian-deep">
+        {time && <p className="text-lg">{horarioPorExtenso(time)}</p>}
+        {place && <p className="text-lg">{place}</p>}
+        {address && <p className="text-sm text-muted-foreground">{address}</p>}
+        <MapLink href={map} />
+      </dd>
+    </div>
+  );
+}
+
+function InformationDialog({ config }: { config: Configuracoes }) {
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -50,20 +95,38 @@ function InformationDialog() {
 
         <dl className="space-y-6 font-sans-body">
           <div>
-            <dt className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-gold">Horário da cerimônia</dt>
-            <dd className="text-lg text-marian-deep">{WEDDING_DETAILS.ceremonyTime}</dd>
-          </div>
-          <div>
-            <dt className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em] text-gold">
-              <MapPin className="h-4 w-4" aria-hidden="true" />
-              Local da cerimônia
+            <dt className={detailLabelClass}>
+              <CalendarHeart className="h-4 w-4" aria-hidden="true" />
+              Data
             </dt>
-            <dd className="text-lg text-marian-deep">{WEDDING_DETAILS.ceremonyPlace}</dd>
+            <dd className="text-lg text-marian-deep">{dataPorExtenso(config.data_casamento)}</dd>
           </div>
-          <div>
-            <dt className="mb-1 text-xs font-bold uppercase tracking-[0.16em] text-gold">Local da recepção</dt>
-            <dd className="text-lg text-marian-deep">{WEDDING_DETAILS.receptionPlace}</dd>
-          </div>
+          <Place
+            label="Cerimônia"
+            time={config.cerimonia_horario}
+            place={config.cerimonia_local}
+            address={config.cerimonia_endereco}
+            map={config.cerimonia_mapa}
+          />
+          <Place
+            label="Recepção"
+            time={config.recepcao_horario}
+            place={config.recepcao_local}
+            address={config.recepcao_endereco}
+            map={config.recepcao_mapa}
+          />
+          {config.traje && (
+            <div>
+              <dt className={detailLabelClass}>Traje</dt>
+              <dd className="text-lg text-marian-deep">{config.traje}</dd>
+            </div>
+          )}
+          {config.informacoes_extras && (
+            <div>
+              <dt className={detailLabelClass}>Informações</dt>
+              <dd className="whitespace-pre-line leading-relaxed text-marian-deep">{config.informacoes_extras}</dd>
+            </div>
+          )}
         </dl>
       </DialogContent>
     </Dialog>
@@ -281,43 +344,21 @@ function AttendanceDialog() {
   );
 }
 
-function GiftsDialog() {
+function GiftsLink() {
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button className={actionButtonClass}>
-          <Gift className="h-5 w-5 shrink-0 text-gold transition-transform group-hover:scale-110" aria-hidden="true" />
-          Lista de presentes
-        </button>
-      </DialogTrigger>
-      <DialogContent className="max-w-sm rounded-xl border-gold/20 bg-card p-8 text-center shadow-2xl">
-        <DialogHeader className="text-center">
-          <DialogTitle className="sr-only">Lista de presentes</DialogTitle>
-          <DialogDescription className="pt-4 font-serif-display text-2xl italic text-gold">Em breve...</DialogDescription>
-        </DialogHeader>
-      </DialogContent>
-    </Dialog>
+    <Link href="/presentes" className={actionButtonClass}>
+      <Gift className="h-5 w-5 shrink-0 text-gold transition-transform group-hover:scale-110" aria-hidden="true" />
+      Lista de presentes
+    </Link>
   );
 }
 
-export default function WeddingActions() {
+export default function WeddingActions({ config }: { config: Configuracoes }) {
   return (
-    <section className="relative overflow-hidden bg-cream px-6 py-16 md:py-24" aria-labelledby="wedding-actions-title">
-      <div className="absolute left-1/2 top-0 h-56 w-56 -translate-x-1/2 rounded-full bg-gold/5 blur-3xl" aria-hidden="true" />
-      <div className="relative mx-auto max-w-4xl text-center">
-        <h2 id="wedding-actions-title" className="font-serif-display text-4xl font-light text-marian-deep md:text-5xl">
-          Nosso grande dia
-        </h2>
-        <p className="mx-auto mb-10 mt-4 max-w-xl font-sans-body text-base leading-relaxed text-muted-foreground">
-          Encontre as informações da celebração, confirme sua presença e acompanhe nossa lista de presentes.
-        </p>
-
-        <div className="mx-auto grid max-w-2xl gap-4 md:grid-cols-1">
-          <InformationDialog />
-          <AttendanceDialog />
-          <GiftsDialog />
-        </div>
-      </div>
-    </section>
+    <nav aria-label="Nosso grande dia" className="grid w-full gap-[clamp(0.5rem,1.5dvh,1rem)] md:grid-cols-3 paisagem:grid-cols-1">
+      <InformationDialog config={config} />
+      <AttendanceDialog />
+      <GiftsLink />
+    </nav>
   );
 }

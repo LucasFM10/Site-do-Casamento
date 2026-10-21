@@ -15,6 +15,13 @@
       "when": 1792584510470,
       "tag": "0001_travas_do_site",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792587353184,
+      "tag": "0002_conteudo_e_painel",
+      "breakpoints": true
     }
   ]
 }

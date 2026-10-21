@@ -15,8 +15,8 @@ const lato = Lato({
 });
 
 export const metadata: Metadata = {
-  title: "Casamento de Lucas & Amanda",
-  description: "Informações e confirmação de presença para o casamento de Lucas e Amanda.",
+  title: { default: "Casamento de Lucas & Amanda", template: "%s | Lucas & Amanda" },
+  description: "Informações, confirmação de presença e lista de presentes do casamento de Lucas e Amanda.",
   authors: [{ name: "Lucas & Amanda" }],
   openGraph: {
     title: "Casamento de Lucas & Amanda",

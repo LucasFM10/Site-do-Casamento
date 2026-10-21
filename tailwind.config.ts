@@ -18,6 +18,10 @@ export default {
       },
     },
     extend: {
+      screens: {
+        // Celular deitado (pouca altura): a página inicial vira duas colunas.
+        paisagem: { raw: "(orientation: landscape) and (max-height: 540px)" },
+      },
       fontFamily: {
         serif: ["Cormorant Garamond", "Georgia", "serif"],
         sans: ["Lato", "system-ui", "sans-serif"],

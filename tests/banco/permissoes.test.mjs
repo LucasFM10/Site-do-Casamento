@@ -69,10 +69,76 @@ describe("migrador e permissões do banco", { skip: pular }, () => {
     assert.equal(lido.nome, "Lucas");
   });
 
-  test("o site não mexe no catálogo de presentes", async () => {
-    assert.equal(await codigo(site`insert into presentes (nome, preco_centavos) values ('X', 100)`), SEM_PERMISSAO);
-    assert.equal(await codigo(site`update presentes set preco_centavos = 1 where id = ${d.presente.id}`), SEM_PERMISSAO);
-    assert.equal(await codigo(site`delete from presentes where id = ${d.presente.id}`), SEM_PERMISSAO);
+  test("o painel cadastra, edita e apaga presentes, sem trocar id nem datas de criação", async () => {
+    const [p] = await site`insert into presentes (nome, preco_centavos, quantidade_maxima) values ('Torradeira', 15000, 1) returning id`;
+    assert.equal(
+      await codigo(site`update presentes set nome = 'Torradeira inox', preco_centavos = 16000, ativo = true,
+        ordem = 3, quantidade_maxima = null, removido_em = null, atualizado_em = now() where id = ${p.id}`),
+      "ok",
+    );
+    assert.equal(await codigo(site`update presentes set criado_em = now() where id = ${p.id}`), SEM_PERMISSAO);
+    assert.equal(await codigo(site`update presentes set id = gen_random_uuid() where id = ${p.id}`), SEM_PERMISSAO);
+    assert.equal(await codigo(site`update presentes set quantidade_maxima = 0 where id = ${p.id}`), CHECK);
+    assert.equal(await codigo(site`delete from presentes where id = ${p.id}`), "ok");
+  });
+
+  test("imagens: só JPEG/PNG/WebP, do grupo certo, apagadas junto com o presente", async () => {
+    const [p] = await site`insert into presentes (nome, preco_centavos) values ('Com foto', 1000) returning id`;
+    const bytes = Buffer.from([0xff, 0xd8, 0xff, 0xe0]);
+    const nova = (grupo, presenteId, tipo = "image/jpeg", dados = bytes) => site`
+      insert into imagens (grupo, presente_id, tipo, largura, altura, dados)
+      values (${grupo}, ${presenteId}, ${tipo}, 800, 600, ${dados}) returning id`;
+
+    const [img] = await nova("presente", p.id);
+    assert.equal(await codigo(nova("carrossel", null)), "ok");
+    assert.equal(await codigo(nova("presente", null)), CHECK);
+    assert.equal(await codigo(nova("carrossel", p.id)), CHECK);
+    assert.equal(await codigo(nova("carrossel", null, "image/svg+xml")), CHECK);
+    assert.equal(await codigo(nova("carrossel", null, "image/jpeg", Buffer.alloc(1_500_001))), CHECK);
+    assert.equal(await codigo(site`update imagens set ordem = 2 where id = ${img.id}`), "ok");
+    assert.equal(await codigo(site`update imagens set dados = ${bytes} where id = ${img.id}`), SEM_PERMISSAO);
+
+    await site`delete from presentes where id = ${p.id}`;
+    const [{ total }] = await dono`select count(*)::int as total from imagens where id = ${img.id}`;
+    assert.equal(total, 0);
+  });
+
+  test("configurações: o site grava e atualiza, com chave e tamanho conferidos", async () => {
+    const grava = (chave, valor) => site`
+      insert into configuracoes (chave, valor) values (${chave}, ${valor})
+      on conflict (chave) do update set valor = excluded.valor, atualizado_em = now()`;
+    assert.equal(await codigo(grava("cidade", "Recife - PE")), "ok");
+    assert.equal(await codigo(grava("cidade", "João Pessoa - PB")), "ok");
+    const [c] = await site`select valor from configuracoes where chave = 'cidade'`;
+    assert.equal(c.valor, "João Pessoa - PB");
+    assert.equal(await codigo(grava("Chave Inválida", "x")), CHECK);
+    assert.equal(await codigo(grava("texto_grande", "x".repeat(4001))), CHECK);
+    assert.equal(await codigo(site`delete from configuracoes`), SEM_PERMISSAO);
+  });
+
+  test("login: senha conferida pelo pgcrypto, sessões e limites gravados pelo site", async () => {
+    const [adm] = await dono`
+      insert into administradores (nome, telefone, senha_hash)
+      values ('Amanda', '5583999990009', crypt('senha-de-teste', gen_salt('bf', 6))) returning id`;
+    const confere = (senha) => site`
+      select senha_hash = crypt(${senha}, senha_hash) as ok from administradores where id = ${adm.id}`;
+    assert.equal((await confere("senha-de-teste"))[0].ok, true);
+    assert.equal((await confere("errada"))[0].ok, false);
+    // O hash fictício (celular que não existe) também é aceito pelo crypt.
+    const [ficticio] = await site`
+      select crypt('x', '$2a$12$CasamentoLucasAmandaXXuSemSenhaUsuarioInexistente0000') is not null as ok`;
+    assert.equal(ficticio.ok, true);
+    assert.equal(await codigo(dono`update administradores set senha_hash = 'texto puro' where id = ${adm.id}`), CHECK);
+    assert.equal(await codigo(site`update administradores set senha_hash = null where id = ${adm.id}`), SEM_PERMISSAO);
+
+    const [s] = await site`
+      insert into sessoes_admin (administrador_id, token_hash, expira_em)
+      values (${adm.id}, 'hash-do-token', now() + interval '1 day') returning id`;
+    assert.equal(await codigo(site`update sessoes_admin set expira_em = now() + interval '1 year' where id = ${s.id}`), SEM_PERMISSAO);
+    assert.equal(await codigo(site`delete from sessoes_admin where id = ${s.id}`), "ok");
+
+    assert.equal(await codigo(site`insert into limite_tentativas (chave) values ('login:tel:5583999990009')`), "ok");
+    assert.equal(await codigo(site`delete from limite_tentativas where chave = 'login:tel:5583999990009'`), "ok");
   });
 
   test("pedido nasce pendente e não troca valor, presente nem comprador", async () => {
@@ -88,13 +154,15 @@ describe("migrador e permissões do banco", { skip: pular }, () => {
     assert.equal(await codigo(site`update pedidos set valor_centavos = 1 where id = ${p.id}`), SEM_PERMISSAO);
     assert.equal(await codigo(site`update pedidos set presente_id = ${d.outro.id} where id = ${p.id}`), SEM_PERMISSAO);
     assert.equal(await codigo(site`update pedidos set comprador_email = 'x@x.com' where id = ${p.id}`), SEM_PERMISSAO);
+    assert.equal(await codigo(site`update pedidos set mensagem = 'outra' where id = ${p.id}`), SEM_PERMISSAO);
     assert.equal(await codigo(site`update pedidos set external_reference = 'x' where id = ${p.id}`), SEM_PERMISSAO);
     assert.equal(await codigo(site`delete from pedidos where id = ${p.id}`), SEM_PERMISSAO);
     assert.equal(
       await codigo(site`update pedidos set status = 'aprovado', mp_payment_id = '123', atualizado_em = now() where id = ${p.id}`),
       "ok",
     );
-    // Presente com pedido não pode ser apagado, nem pelo dono.
+    // Presente com pedido não pode ser apagado (nem pelo dono): o painel o arquiva.
+    assert.equal(await codigo(site`delete from presentes where id = ${d.presente.id}`), CHAVE_ESTRANGEIRA);
     assert.equal(await codigo(dono`delete from presentes where id = ${d.presente.id}`), CHAVE_ESTRANGEIRA);
   });
 
