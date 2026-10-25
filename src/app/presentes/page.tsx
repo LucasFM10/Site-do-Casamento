@@ -38,7 +38,7 @@ export default async function PaginaPresentes() {
                   id={item.capa?.id ?? null}
                   alt={item.nome}
                   sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                  className="aspect-[4/3]"
+                  className="aspect-[3/4]"
                   priority={i < 3}
                 />
                 <div className="flex flex-1 flex-col p-5">
