@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { removerPresenteAcao } from "@/app/admin/acoes";
 import BotaoConfirmar from "@/components/admin/BotaoConfirmar";
 import EnvioImagens from "@/components/admin/EnvioImagens";
-import { botaoPerigo, cartao, tituloPagina } from "@/components/admin/estilos";
+import { botaoPerigo, botaoSecundario, cartao, tituloPagina } from "@/components/admin/estilos";
 import FormularioPresente from "@/components/admin/FormularioPresente";
 import GradeImagens from "@/components/admin/GradeImagens";
 import { exigirAdmin } from "@/lib/servidor/admin";
@@ -25,9 +25,15 @@ export default async function EditarPresente({ params, searchParams }: Props) {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
-      <Link href="/admin/presentes" className="font-sans-body text-sm font-bold text-marian-deep hover:text-gold">
-        ← Presentes
-      </Link>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <Link href="/admin/presentes" className="font-sans-body text-sm font-bold text-marian-deep hover:text-gold">
+          ← Presentes
+        </Link>
+        <Link href="/admin/presentes/novo" className={botaoSecundario}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Novo presente
+        </Link>
+      </div>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h1 className={tituloPagina}>{presente.nome}</h1>
         {presente.ativo && (

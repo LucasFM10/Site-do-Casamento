@@ -16,7 +16,8 @@ export default function Galeria({ ids, nome }: { ids: string[]; nome: string }) 
         id={idAtual}
         alt={ids.length > 1 ? `${nome} - foto ${atual + 1} de ${ids.length}` : nome}
         sizes="(min-width: 768px) 50vw, 100vw"
-        className="aspect-[3/4] rounded-xl border border-gold/20"
+        ajuste="conter"
+        className="aspect-square rounded-xl border border-gold/20 bg-white"
         priority
       />
       {ids.length > 1 && (
@@ -29,11 +30,11 @@ export default function Galeria({ ids, nome }: { ids: string[]; nome: string }) 
               aria-label={`Ver foto ${i + 1}`}
               aria-current={i === atual}
               className={cn(
-                "relative h-20 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marian-deep",
+                "relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 bg-white transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-marian-deep",
                 i === atual ? "border-gold" : "border-transparent opacity-70 hover:opacity-100",
               )}
             >
-              <Image src={`/api/imagens/${id}`} alt="" fill sizes="64px" className="object-cover" unoptimized />
+              <Image src={`/api/imagens/${id}`} alt="" fill sizes="64px" className="object-contain p-1" unoptimized />
             </button>
           ))}
         </div>

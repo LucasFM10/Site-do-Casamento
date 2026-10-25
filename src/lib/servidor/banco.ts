@@ -55,3 +55,14 @@ export function mensagemDoErro(erro: unknown) {
 export function idValido(id: unknown): id is string {
   return typeof id === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id);
 }
+
+/** Lista de ids vinda do navegador para reordenar: ids válidos, sem repetição e de tamanho razoável. */
+export function listaDeIds(ids: unknown): ids is string[] {
+  return Array.isArray(ids) && ids.length <= 500 && ids.every(idValido) && new Set(ids).size === ids.length;
+}
+
+/** A lista nova tem exatamente os mesmos itens da atual (só a ordem muda). */
+export function mesmoConjunto(atuais: string[], novos: string[]) {
+  const conjunto = new Set(atuais);
+  return atuais.length === novos.length && novos.every((id) => conjunto.has(id));
+}

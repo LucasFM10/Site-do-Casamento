@@ -13,21 +13,21 @@ const espioes = vi.hoisted(() => ({
   salvarConfiguracoes: vi.fn(),
   apagarImagem: vi.fn(),
   guardarImagem: vi.fn(),
-  moverImagem: vi.fn(),
+  reordenarImagens: vi.fn(),
   confirmarPagamento: vi.fn(),
   atualizarPresente: vi.fn(),
   criarPresente: vi.fn(),
   definirAtivo: vi.fn(),
-  moverPresente: vi.fn(),
   obterPresenteAdmin: vi.fn(),
   removerPresente: vi.fn(),
+  reordenarPresentes: vi.fn(),
 }));
 vi.mock("@/lib/servidor/configuracoes", () => ({ salvarConfiguracoes: espioes.salvarConfiguracoes }));
 vi.mock("@/lib/servidor/imagens", async (original) => ({
   ...(await original<typeof import("@/lib/servidor/imagens")>()),
   apagarImagem: espioes.apagarImagem,
   guardarImagem: espioes.guardarImagem,
-  moverImagem: espioes.moverImagem,
+  reordenarImagens: espioes.reordenarImagens,
 }));
 vi.mock("@/lib/servidor/pedidos", () => ({
   confirmarPagamento: espioes.confirmarPagamento,
@@ -37,9 +37,9 @@ vi.mock("@/lib/servidor/presentes", () => ({
   atualizarPresente: espioes.atualizarPresente,
   criarPresente: espioes.criarPresente,
   definirAtivo: espioes.definirAtivo,
-  moverPresente: espioes.moverPresente,
   obterPresenteAdmin: espioes.obterPresenteAdmin,
   removerPresente: espioes.removerPresente,
+  reordenarPresentes: espioes.reordenarPresentes,
 }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 

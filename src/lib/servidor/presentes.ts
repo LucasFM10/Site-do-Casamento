@@ -2,7 +2,7 @@ import "server-only";
 import { and, asc, count, eq, isNull, max, sql } from "drizzle-orm";
 import { pedidos, presentes } from "@/db/esquema";
 import type { DadosPresente } from "@/lib/presentes";
-import { banco, idValido } from "./banco";
+import { banco, idValido, listaDeIds, mesmoConjunto } from "./banco";
 import { capasDosPresentes, listarImagens, type Imagem } from "./imagens";
 
 /**
@@ -196,26 +196,25 @@ export async function removerPresente(id: string): Promise<"apagado" | "arquivad
   });
 }
 
-/** Troca o presente de lugar com o vizinho (-1 sobe, +1 desce) e renumera a lista. */
-export async function moverPresente(id: string, direcao: -1 | 1) {
-  if (!idValido(id)) return;
+/**
+ * Grava a ordem da lista arrastada no painel. Só aceita a lista completa
+ * e sem repetição dos presentes atuais; qualquer outra coisa é ignorada.
+ */
+export async function reordenarPresentes(ids: unknown): Promise<boolean> {
+  if (!listaDeIds(ids)) return false;
   const db = await banco();
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     const lista = await tx
       .select({ id: presentes.id, ordem: presentes.ordem })
       .from(presentes)
       .where(naoRemovido)
-      .orderBy(asc(presentes.ordem), asc(presentes.criadoEm))
       .for("update");
-    const ids = lista.map((p) => p.id);
-    const de = ids.indexOf(id);
-    const para = de + direcao;
-    if (de < 0 || para < 0 || para >= ids.length) return;
-    [ids[de], ids[para]] = [ids[para], ids[de]];
+    if (!mesmoConjunto(lista.map((p) => p.id), ids)) return false;
     for (const [ordem, presenteId] of ids.entries()) {
       if (lista.find((p) => p.id === presenteId)?.ordem !== ordem) {
         await tx.update(presentes).set({ ordem }).where(eq(presentes.id, presenteId));
       }
     }
+    return true;
   });
 }

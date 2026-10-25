@@ -12,21 +12,20 @@ import { validarPresente } from "@/lib/presentes";
 import { exigirAdmin, sair } from "@/lib/servidor/admin";
 import { idValido, mensagemDoErro } from "@/lib/servidor/banco";
 import { salvarConfiguracoes } from "@/lib/servidor/configuracoes";
-import { apagarImagem, guardarImagem, moverImagem, validarImagem, type ErroImagem } from "@/lib/servidor/imagens";
+import { apagarImagem, guardarImagem, reordenarImagens, validarImagem, type ErroImagem } from "@/lib/servidor/imagens";
 import { confirmarPagamento, mercadoPagoConfigurado } from "@/lib/servidor/pedidos";
 import {
   atualizarPresente,
   criarPresente,
   definirAtivo,
-  moverPresente,
   obterPresenteAdmin,
   removerPresente,
+  reordenarPresentes,
 } from "@/lib/servidor/presentes";
 
 export type Resultado = { ok?: boolean; mensagem?: string; erro?: string; erros?: Record<string, string> };
 
 const texto = (form: FormData, nome: string) => String(form.get(nome) ?? "");
-const direcao = (form: FormData) => (texto(form, "direcao") === "subir" ? -1 : 1);
 
 /** Página inicial, vitrine e painel mostram dados novos na próxima visita. */
 function atualizarPaginas() {
@@ -69,10 +68,12 @@ export async function removerPresenteAcao(form: FormData) {
   redirect("/admin/presentes");
 }
 
-export async function moverPresenteAcao(form: FormData) {
+/** Nova ordem dos presentes, arrastada no painel. */
+export async function reordenarPresentesAcao(ids: unknown): Promise<boolean> {
   await exigirAdmin();
-  await moverPresente(texto(form, "id"), direcao(form));
+  const ok = await reordenarPresentes(ids);
   atualizarPaginas();
+  return ok;
 }
 
 export async function definirAtivoAcao(form: FormData) {
@@ -123,10 +124,12 @@ export async function enviarImagemAcao(form: FormData): Promise<Resultado> {
   return { ok: true };
 }
 
-export async function moverImagemAcao(form: FormData) {
+/** Nova ordem das fotos de um grupo, arrastada no painel. */
+export async function reordenarImagensAcao(ids: unknown): Promise<boolean> {
   await exigirAdmin();
-  await moverImagem(texto(form, "id"), direcao(form));
+  const ok = await reordenarImagens(ids);
   atualizarPaginas();
+  return ok;
 }
 
 export async function apagarImagemAcao(form: FormData) {

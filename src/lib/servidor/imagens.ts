@@ -1,7 +1,7 @@
 import "server-only";
 import { and, asc, eq, isNull, max } from "drizzle-orm";
 import { imagens, MAX_BYTES_IMAGEM, TIPOS_IMAGEM } from "@/db/esquema";
-import { banco, idValido } from "./banco";
+import { banco, idValido, listaDeIds, mesmoConjunto } from "./banco";
 
 /**
  * Imagens dos presentes e do carrossel, guardadas no banco. O navegador do
@@ -85,30 +85,28 @@ export async function apagarImagem(id: string) {
   await db.delete(imagens).where(eq(imagens.id, id));
 }
 
-/** Troca a imagem de lugar com a vizinha (-1 sobe, +1 desce) e renumera o grupo. */
-export async function moverImagem(id: string, direcao: -1 | 1) {
-  if (!idValido(id)) return;
+/** Grava a ordem das fotos de um grupo; só aceita todas as fotos do grupo, sem repetição. */
+export async function reordenarImagens(ids: unknown): Promise<boolean> {
+  if (!listaDeIds(ids) || ids.length === 0) return false;
   const db = await banco();
-  await db.transaction(async (tx) => {
+  return db.transaction(async (tx) => {
     const [alvo] = await tx
       .select({ grupo: imagens.grupo, presenteId: imagens.presenteId })
       .from(imagens)
-      .where(eq(imagens.id, id));
-    if (!alvo) return;
+      .where(eq(imagens.id, ids[0]));
+    if (!alvo) return false;
     const lista = await tx
-      .select({ id: imagens.id })
+      .select({ id: imagens.id, ordem: imagens.ordem })
       .from(imagens)
       .where(doGrupo(alvo.grupo, alvo.presenteId))
-      .orderBy(asc(imagens.ordem), asc(imagens.criadoEm))
       .for("update");
-    const ids = lista.map((i) => i.id);
-    const de = ids.indexOf(id);
-    const para = de + direcao;
-    if (de < 0 || para < 0 || para >= ids.length) return;
-    [ids[de], ids[para]] = [ids[para], ids[de]];
+    if (!mesmoConjunto(lista.map((i) => i.id), ids)) return false;
     for (const [ordem, imagemId] of ids.entries()) {
-      await tx.update(imagens).set({ ordem }).where(eq(imagens.id, imagemId));
+      if (lista.find((i) => i.id === imagemId)?.ordem !== ordem) {
+        await tx.update(imagens).set({ ordem }).where(eq(imagens.id, imagemId));
+      }
     }
+    return true;
   });
 }
 
